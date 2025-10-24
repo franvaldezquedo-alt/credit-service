@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Service
@@ -48,7 +49,12 @@ public class CreditService implements CreditInputPort {
           });
   }
 
-  /**
+    @Override
+    public Mono<CreditResponse> getCreditById(String creditId) {
+        return null;
+    }
+
+    /**
    * Crear un nuevo crédito
    */
   @Override
@@ -79,7 +85,55 @@ public class CreditService implements CreditInputPort {
           });
   }
 
-  /**
+    @Override
+    public Mono<CreditResponse> updateCredit(String id, CreditRequest creditRequest) {
+        return repositoryOutputPort.findById(id)
+                .switchIfEmpty(Mono.error(new CreditNotFoundException("Credit not found with ID: " + id)))
+                .flatMap(existing -> {
+                    if (existing.getStatus() == CreditStatus.CANCELLED) {
+                        return Mono.error(new BusinessRuleException("Cannot update cancelled credit"));
+                    }
+                    existing.setInterestRate(creditRequest.getInterestRate());
+                    existing.setTermMonths(creditRequest.getTermMonths());
+                    existing.setUpdatedAt(LocalDateTime.now());
+                    return repositoryOutputPort.saveCredit(existing);
+                })
+                .map(updated -> mapperResponse.success(200, "Credit updated successfully", updated.getId()))
+                .onErrorResume(error -> Mono.just(mapperResponse.internalError(error.getMessage())));
+    }
+
+    @Override
+    public Mono<CreditResponse> cancelCredit(String creditId) {
+        return repositoryOutputPort.findById(creditId)
+                .switchIfEmpty(Mono.error(new CreditNotFoundException("Credit not found with ID: " + creditId)))
+                .flatMap(credit -> {
+                    if (credit.getCurrentDebt().compareTo(BigDecimal.ZERO) > 0) {
+                        return Mono.error(new BusinessRuleException("Cannot cancel credit with pending debt"));
+                    }
+                    credit.setStatus(CreditStatus.CANCELLED);
+                    credit.setUpdatedAt(LocalDateTime.now());
+                    return repositoryOutputPort.saveCredit(credit);
+                })
+                .map(credit -> mapperResponse.success(200, "Credit cancelled successfully", credit.getId()))
+                .onErrorResume(error -> Mono.just(mapperResponse.internalError(error.getMessage())));
+    }
+
+    @Override
+    public Mono<CreditResponse> markAsOverdue(String creditId) {
+        return repositoryOutputPort.findById(creditId)
+                .switchIfEmpty(Mono.error(new CreditNotFoundException("Credit not found with ID: " + creditId)))
+                .flatMap(credit -> {
+                    credit.setHasOverdueDebt(true);
+                    credit.setStatus(CreditStatus.OVERDUE);
+                    credit.setUpdatedAt(LocalDateTime.now());
+                    return repositoryOutputPort.saveCredit(credit);
+                })
+                .map(updated -> mapperResponse.success(200, "Credit marked as overdue", updated.getId()))
+                .onErrorResume(error -> Mono.just(mapperResponse.internalError(error.getMessage())));
+
+    }
+
+    /**
    * Eliminar (soft delete) un crédito
    */
   @Override

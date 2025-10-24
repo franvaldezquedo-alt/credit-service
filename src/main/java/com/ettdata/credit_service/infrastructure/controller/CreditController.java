@@ -4,45 +4,58 @@ import com.ettdata.credit_service.application.port.in.CreditInputPort;
 import com.ettdata.credit_service.domain.model.CreditListResponse;
 import com.ettdata.credit_service.domain.model.CreditResponse;
 import com.ettdata.credit_service.infrastructure.model.CreditRequest;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
-import javax.validation.Valid;
 
 @RestController
 @RequestMapping("/api/credits")
 @CrossOrigin
 public class CreditController {
 
-  private final CreditInputPort inputPort;
+  private final CreditInputPort creditService;
 
-  public CreditController(CreditInputPort inputPort) {
-    this.inputPort = inputPort;
+    public CreditController(CreditInputPort creditService) {
+        this.creditService = creditService;
+    }
+
+    @PostMapping
+  public Mono<ResponseEntity<CreditResponse>> create(@RequestBody CreditRequest request) {
+    return creditService.createCredit(request).map(ResponseEntity::ok);
   }
 
-  @PostMapping("/save")
-  Mono<CreditResponse> createCredit(@RequestBody @Valid CreditRequest request) {
-    return inputPort.createCredit(request);
+  @GetMapping
+  public Mono<ResponseEntity<CreditListResponse>> getAll() {
+    return creditService.getAllCredits().map(ResponseEntity::ok);
   }
 
-  @GetMapping("/all")
-  Mono<CreditListResponse> getAllCredits() {
-    return inputPort.getAllCredits();
+  @GetMapping("/{id}")
+  public Mono<ResponseEntity<CreditResponse>> getById(@PathVariable String id) {
+    return creditService.getCreditById(id).map(ResponseEntity::ok);
   }
 
-  @DeleteMapping("/delete/{id}")
-  Mono<CreditResponse> deleteCreditById(@PathVariable String id) {
-    return inputPort.deleteCredit(id);
+  @GetMapping("/customer/{document}")
+  public Mono<ResponseEntity<CreditListResponse>> getByCustomer(@PathVariable String document) {
+    return creditService.getCreditsByDocumentNumber(document).map(ResponseEntity::ok);
   }
 
-  @GetMapping("/{documentNumber}")
-  Mono<CreditListResponse> getCreditsByDocumentNumber(@PathVariable String documentNumber) {
-    return inputPort.getCreditsByDocumentNumber(documentNumber);
+  @PutMapping("/{id}")
+  public Mono<ResponseEntity<CreditResponse>> update(@PathVariable String id, @RequestBody CreditRequest request) {
+    return creditService.updateCredit(id, request).map(ResponseEntity::ok);
+  }
+
+  @PatchMapping("/{id}/cancel")
+  public Mono<ResponseEntity<CreditResponse>> cancel(@PathVariable String id) {
+    return creditService.cancelCredit(id).map(ResponseEntity::ok);
+  }
+
+  @PatchMapping("/{id}/overdue")
+  public Mono<ResponseEntity<CreditResponse>> overdue(@PathVariable String id) {
+    return creditService.markAsOverdue(id).map(ResponseEntity::ok);
+  }
+
+  @DeleteMapping("/{id}")
+  public Mono<ResponseEntity<CreditResponse>> delete(@PathVariable String id) {
+    return creditService.deleteCredit(id).map(ResponseEntity::ok);
   }
 }
