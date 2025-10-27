@@ -4,6 +4,7 @@ import com.ettdata.credit_service.application.port.in.CreditInputPort;
 import com.ettdata.credit_service.domain.model.CreditListResponse;
 import com.ettdata.credit_service.domain.model.CreditResponse;
 import com.ettdata.credit_service.infrastructure.model.CreditRequest;
+import com.ettdata.credit_service.infrastructure.model.DisbursementRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -57,5 +58,10 @@ public class CreditController {
   @DeleteMapping("/{id}")
   public Mono<ResponseEntity<CreditResponse>> delete(@PathVariable String id) {
     return creditService.deleteCredit(id).map(ResponseEntity::ok);
+  }
+
+  @PostMapping("/disbursements")
+  public Mono<ResponseEntity<CreditResponse>> disburse(@RequestBody DisbursementRequest request) {
+    return creditService.disburseCredit(request).map(ResponseEntity::ok);
   }
 }

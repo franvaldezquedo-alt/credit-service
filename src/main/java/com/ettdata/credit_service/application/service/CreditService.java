@@ -7,6 +7,7 @@ import com.ettdata.credit_service.domain.model.CreditListResponse;
 import com.ettdata.credit_service.domain.model.CreditResponse;
 import com.ettdata.credit_service.domain.model.CreditStatus;
 import com.ettdata.credit_service.infrastructure.model.CreditRequest;
+import com.ettdata.credit_service.infrastructure.model.DisbursementRequest;
 import com.ettdata.credit_service.infrastructure.utils.CreditMapper;
 import com.ettdata.credit_service.infrastructure.utils.CreditMapperResponse;
 import com.ettdata.credit_service.infrastructure.utils.CreditValidator;
@@ -164,6 +165,61 @@ public class CreditService implements CreditInputPort {
             return Mono.just(mapperResponse.internalError("Error deleting credit: " + error.getMessage()));
           });
   }
+
+  @Override
+  public Mono<CreditResponse> disburseCredit(DisbursementRequest request) {
+    log.info("Starting disbursement for credit: {}, amount: {}", request.getCreditId(), request.getAmount());
+
+    return repositoryOutputPort.findById(request.getCreditId())
+          .switchIfEmpty(Mono.error(new CreditNotFoundException("Credit not found with ID: " + request.getCreditId())))
+          // Validar condiciones de negocio
+          .flatMap(credit -> validator.validateDisbursement(credit, request.getAmount()))
+          // Actualizar montos
+          .flatMap(validCredit -> {
+            BigDecimal newAvailable = validCredit.getAvailableCredit().subtract(request.getAmount());
+            BigDecimal newDebt = validCredit.getCurrentDebt().add(request.getAmount());
+
+            if (newAvailable.compareTo(BigDecimal.ZERO) < 0) {
+              return Mono.error(new IllegalArgumentException("Insufficient available credit"));
+            }
+
+            validCredit.setAvailableCredit(newAvailable);
+            validCredit.setCurrentDebt(newDebt);
+            validCredit.setUpdatedAt(java.time.LocalDateTime.now());
+
+            return repositoryOutputPort.saveCredit(validCredit);
+          })
+          // Respuesta exitosa
+          .map(savedCredit -> CreditResponse.builder()
+                .codResponse(200)
+                .messageResponse("Disbursement completed successfully")
+                .codEntity(savedCredit.getId())
+                .build())
+          // Manejo de errores
+          .onErrorResume(CreditNotFoundException.class, ex -> {
+            log.error("Credit not found", ex);
+            return Mono.just(CreditResponse.builder()
+                  .codResponse(404)
+                  .messageResponse(ex.getMessage())
+                  .build());
+          })
+          .onErrorResume(IllegalArgumentException.class, ex -> {
+            log.error("Invalid disbursement request", ex);
+            return Mono.just(CreditResponse.builder()
+                  .codResponse(400)
+                  .messageResponse(ex.getMessage())
+                  .build());
+          })
+          .onErrorResume(Exception.class, ex -> {
+            log.error("Unexpected error during disbursement", ex);
+            return Mono.just(CreditResponse.builder()
+                  .codResponse(500)
+                  .messageResponse("Error processing disbursement: " + ex.getMessage())
+                  .build());
+          });
+  }
+
+
 
   /**
    * Obtener créditos por número de documento

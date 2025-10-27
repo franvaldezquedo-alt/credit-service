@@ -2,7 +2,6 @@ package com.ettdata.credit_service.infrastructure.adapter;
 
 import com.ettdata.credit_service.application.port.out.CreditRepositoryOutputPort;
 import com.ettdata.credit_service.domain.model.Credit;
-import com.ettdata.credit_service.infrastructure.entity.CreditEntity;
 import com.ettdata.credit_service.infrastructure.repository.CreditRepository;
 import com.ettdata.credit_service.infrastructure.utils.CreditMapper;
 import org.springframework.stereotype.Component;
@@ -39,7 +38,7 @@ public class CreditAdapter implements CreditRepositoryOutputPort{
 
   @Override
   public Flux<Credit> findByDocumentNumber(String documentNumber) {
-    return repository.findBycustomerDocument(documentNumber)
+    return repository.findByCustomerDocument(documentNumber)
           .map(mapper::toDomain);
   }
 
@@ -48,4 +47,6 @@ public class CreditAdapter implements CreditRepositoryOutputPort{
     return repository.findById(idCredit)
           .map(mapper::toDomain);
   }
+
+
 }

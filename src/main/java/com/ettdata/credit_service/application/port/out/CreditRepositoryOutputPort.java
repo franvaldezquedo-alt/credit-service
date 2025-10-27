@@ -10,5 +10,4 @@ public interface CreditRepositoryOutputPort {
   Mono<Void> deleteByIdCredit(String idCredit);
   Flux<Credit> findByDocumentNumber(String documentNumber);
   Mono<Credit> findById(String idCredit);
-
 }

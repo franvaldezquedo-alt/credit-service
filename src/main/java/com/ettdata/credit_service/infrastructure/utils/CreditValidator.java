@@ -181,4 +181,41 @@ public class CreditValidator {
     log.debug("Credit {} can be deleted", credit.getId());
     return Mono.just(credit);
   }
+
+  /**
+   * Valida que un crédito puede recibir un desembolso.
+   */
+  public Mono<Credit> validateDisbursement(Credit credit, java.math.BigDecimal amount) {
+    log.debug("Validating disbursement for credit {} with amount {}", credit.getId(), amount);
+
+    if (credit.getStatus() != CreditStatus.ACTIVE) {
+      log.warn("Credit {} is not active (status: {})", credit.getId(), credit.getStatus());
+      return Mono.error(new IllegalStateException("Credit must be active to allow disbursements"));
+    }
+
+    if (amount == null || amount.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+      log.warn("Invalid disbursement amount: {}", amount);
+      return Mono.error(new IllegalArgumentException("Disbursement amount must be greater than zero"));
+    }
+
+    if (credit.getAvailableCredit() == null) {
+      log.warn("Credit {} has no available credit defined", credit.getId());
+      return Mono.error(new IllegalStateException("Credit available amount not defined"));
+    }
+
+    if (credit.getAvailableCredit().compareTo(amount) < 0) {
+      log.warn("Insufficient available credit for credit {}: available={}, requested={}",
+            credit.getId(), credit.getAvailableCredit(), amount);
+      return Mono.error(new IllegalArgumentException("Insufficient available credit"));
+    }
+
+    if (Boolean.TRUE.equals(credit.getHasOverdueDebt())) {
+      log.warn("Credit {} has overdue debts", credit.getId());
+      return Mono.error(new OverdueDebtException("Cannot disburse funds: credit has overdue debts"));
+    }
+
+    log.debug("Disbursement validation passed for credit {}", credit.getId());
+    return Mono.just(credit);
+  }
+
 }

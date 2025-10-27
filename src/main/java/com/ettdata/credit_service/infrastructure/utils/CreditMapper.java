@@ -4,6 +4,7 @@ import com.ettdata.credit_service.domain.model.Credit;
 import com.ettdata.credit_service.domain.model.CreditStatus;
 import com.ettdata.credit_service.infrastructure.entity.CreditEntity;
 import com.ettdata.credit_service.infrastructure.model.CreditRequest;
+import com.ettdata.credit_service.infrastructure.model.DisbursementRequest;
 import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -101,6 +102,39 @@ public class CreditMapper {
           .updatedAt(LocalDateTime.now())
           .build();
   }
+
+  private Credit disbursementRequestToDomain(DisbursementRequest request, Credit existingCredit) {
+    if (request == null || existingCredit == null) {
+      return null;
+    }
+
+    BigDecimal disbursementAmount = request.getAmount();
+    BigDecimal newAvailableCredit = existingCredit.getAvailableCredit().subtract(disbursementAmount);
+    BigDecimal newCurrentDebt = existingCredit.getCurrentDebt().add(disbursementAmount);
+
+    if (newAvailableCredit.compareTo(BigDecimal.ZERO) < 0) {
+      throw new IllegalArgumentException("Insufficient available credit for this disbursement");
+    }
+
+    return Credit.builder()
+          .id(existingCredit.getId())
+          .creditNumber(existingCredit.getCreditNumber())
+          .customerDocument(existingCredit.getCustomerDocument())
+          .type(existingCredit.getType())
+          .creditLimit(existingCredit.getCreditLimit())
+          .currentDebt(newCurrentDebt)
+          .availableCredit(newAvailableCredit)
+          .interestRate(existingCredit.getInterestRate())
+          .termMonths(existingCredit.getTermMonths())
+          .monthlyPayment(existingCredit.getMonthlyPayment())
+          .dueDate(existingCredit.getDueDate())
+          .hasOverdueDebt(existingCredit.getHasOverdueDebt())
+          .status(existingCredit.getStatus())
+          .createdAt(existingCredit.getCreatedAt())
+          .updatedAt(java.time.LocalDateTime.now())
+          .build();
+  }
+
 
   // ==================== HELPER METHODS ====================
 
