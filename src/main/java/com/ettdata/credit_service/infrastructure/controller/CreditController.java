@@ -20,7 +20,7 @@ public class CreditController {
         this.creditService = creditService;
     }
 
-    @PostMapping
+    @PostMapping("all")
   public Mono<ResponseEntity<CreditResponse>> create(@RequestBody CreditRequest request) {
     return creditService.createCredit(request).map(ResponseEntity::ok);
   }
